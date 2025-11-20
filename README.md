@@ -5,6 +5,8 @@ A minimalist file sharing application for personal use with password protection.
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4)
 
+![Demo Screenshot](demo-screenshot.png)
+
 ## Quick Start
 
 **Demo Credentials:**
