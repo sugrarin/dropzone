@@ -7,11 +7,8 @@ A minimalist file sharing application for personal use with password protection.
 
 ![Demo Screenshot](demo-screenshot.png)
 
-## Quick Start
+Live Demo: [filesharing-demo.timur.ee](filesharing-demo.timur.ee)
 
-**Demo Credentials:**
-- Password: `DemoPassword`
-- ⚠️ Change this immediately after installation!
 
 ## Features
 
@@ -43,7 +40,7 @@ chmod 755 s/
 
 ### 3. Configure Password
 
-**Default demo password:** `DemoPassword`
+**Default password:** `DemoPassword`
 
 ⚠️ **Change this immediately in production!**
 
@@ -81,7 +78,8 @@ Open your site in a browser and log in with your password.
 │   └── files.json      # File metadata (JSON database)
 ├── s/                  # Uploaded files directory
 │   └── xxxxx.ext       # Files with 5-char IDs
-└── icons/              # UI icons
+├── icons/              # UI icons
+└── demo/               # Demo site
 ```
 
 ## Usage
