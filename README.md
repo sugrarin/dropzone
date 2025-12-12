@@ -7,7 +7,7 @@ A minimalist file sharing application for personal use with password protection.
 
 ![Demo Screenshot](demo-screenshot.png)
 
-Live Demo: [filesharing-demo.timur.ee](filesharing-demo.timur.ee)
+Live Demo: [filesharing-demo.timur.ee](https://filesharing-demo.timur.ee)
 
 
 ## Features
