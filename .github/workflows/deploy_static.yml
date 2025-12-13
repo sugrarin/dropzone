@@ -30,7 +30,7 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           # ВНИМАНИЕ: Здесь указывается каталог, который нужно опубликовать
-          path: './docs'  # <-- Здесь измени на '/demo' или '/docs'
+          path: './demo'  # <-- Здесь измени на '/demo' или '/docs'
 
       # Шаг 4: Развертываем сайт
       - name: Deploy to GitHub Pages
