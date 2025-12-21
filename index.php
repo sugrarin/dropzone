@@ -131,6 +131,25 @@ requireAuth();
         </button>
     </div>
 
+    <!-- File actions menu -->
+    <div class="context-menu" id="fileActionsMenu" style="display: none;">
+        <button class="menu-item" id="fileMenuCopyLink">
+            <img src="icons/copy-link.png" alt="Copy" class="icon-img-inline"> Copy link
+        </button>
+        <button class="menu-item" id="fileMenuOpen">
+            <img src="icons/see-open.png" alt="Open" class="icon-img-inline"> Open
+        </button>
+        <button class="menu-item" id="fileMenuRename">
+            <img src="icons/edit.png" alt="Rename" class="icon-img-inline"> Rename
+        </button>
+        <button class="menu-item" id="fileMenuReplace">
+            <img src="icons/update.png" alt="Replace" class="icon-img-inline"> Replace
+        </button>
+        <button class="menu-item menu-item-danger" id="fileMenuDelete">
+            <img src="icons/delete.png" alt="Delete" class="icon-img-inline"> Delete
+        </button>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

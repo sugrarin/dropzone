@@ -12,9 +12,10 @@ if (!isAuthenticated()) {
     exit;
 }
 
+require_once 'db.php';
+
 define('DATA_DIR', __DIR__ . '/data');
 define('UPLOAD_DIR', __DIR__ . '/s');
-define('DATA_FILE', DATA_DIR . '/files.json');
 define('MAX_FILE_SIZE', 100 * 1024 * 1024);
 
 if (!file_exists(DATA_DIR)) {
@@ -24,22 +25,8 @@ if (!file_exists(UPLOAD_DIR)) {
     mkdir(UPLOAD_DIR, 0755, true);
 }
 
-if (!file_exists(DATA_FILE)) {
-    $initialData = [
-        'files' => [],
-        'categories' => ['All Files']
-    ];
-    file_put_contents(DATA_FILE, json_encode($initialData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-}
-
-function loadData() {
-    $json = file_get_contents(DATA_FILE);
-    return json_decode($json, true);
-}
-
-function saveData($data) {
-    file_put_contents(DATA_FILE, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-}
+// Initialize database
+$db = getDatabase();
 
 function generateFileId() {
     $characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -50,18 +37,11 @@ function generateFileId() {
     return $id;
 }
 
-function getUniqueFileId($data) {
+function getUniqueFileId($db) {
     $maxAttempts = 100;
     for ($i = 0; $i < $maxAttempts; $i++) {
         $id = generateFileId();
-        $exists = false;
-        foreach ($data['files'] as $file) {
-            if ($file['id'] === $id) {
-                $exists = true;
-                break;
-            }
-        }
-        if (!$exists) {
+        if (!$db->fileExists($id)) {
             return $id;
         }
     }
@@ -75,11 +55,27 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($input['action'] ?? null);
 
 switch ($action) {
     case 'list':
-        $data = loadData();
+        $files = $db->getAllFiles();
+        $categories = $db->getAllCategories();
+        
+        // Convert database format to API format
+        $filesFormatted = array_map(function($file) {
+            return [
+                'id' => $file['id'],
+                'name' => $file['name'],
+                'originalName' => $file['original_name'],
+                'extension' => $file['extension'],
+                'size' => (int)$file['size'],
+                'uploadDate' => $file['upload_date'],
+                'modified' => (bool)$file['modified'],
+                'category' => $file['category']
+            ];
+        }, $files);
+        
         echo json_encode([
             'success' => true,
-            'files' => $data['files'],
-            'categories' => $data['categories']
+            'files' => $filesFormatted,
+            'categories' => $categories
         ]);
         break;
     
@@ -101,27 +97,17 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        
         $fileId = null;
         if (isset($_POST['id'])) {
             $requestedId = $_POST['id'];
-            $isUnique = true;
-            foreach ($data['files'] as $f) {
-                if ($f['id'] === $requestedId) {
-                    $isUnique = false;
-                    break;
-                }
-            }
-            
-            if ($isUnique) {
+            if (!$db->fileExists($requestedId)) {
                 $fileId = $requestedId;
             } else {
                 echo json_encode(['success' => false, 'error' => 'ID file already exists, try again']);
                 exit;
             }
         } else {
-            $fileId = getUniqueFileId($data);
+            $fileId = getUniqueFileId($db);
         }
         
         if (!$fileId) {
@@ -152,8 +138,16 @@ switch ($action) {
             'category' => $category
         ];
         
-        $data['files'][] = $fileData;
-        saveData($data);
+        try {
+            $db->insertFile($fileData);
+        } catch (Exception $e) {
+            // If database insert fails, delete the uploaded file
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+            echo json_encode(['success' => false, 'error' => 'Failed to save file metadata']);
+            exit;
+        }
         
         echo json_encode([
             'success' => true,
@@ -180,17 +174,9 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        $fileIndex = -1;
+        $existingFile = $db->getFileById($fileId);
         
-        foreach ($data['files'] as $index => $f) {
-            if ($f['id'] === $fileId) {
-                $fileIndex = $index;
-                break;
-            }
-        }
-        
-        if ($fileIndex === -1) {
+        if (!$existingFile) {
             echo json_encode(['success' => false, 'error' => 'File not found']);
             exit;
         }
@@ -200,7 +186,7 @@ switch ($action) {
         $fileName = $fileId . '.' . $extension;
         $filePath = UPLOAD_DIR . '/' . $fileName;
         
-        $oldExtension = $data['files'][$fileIndex]['extension'];
+        $oldExtension = $existingFile['extension'];
         if ($oldExtension !== $extension) {
             $oldFilePath = UPLOAD_DIR . '/' . $fileId . '.' . $oldExtension;
             if (file_exists($oldFilePath)) {
@@ -213,16 +199,27 @@ switch ($action) {
             exit;
         }
         
-        $data['files'][$fileIndex]['name'] = $originalName;
-        $data['files'][$fileIndex]['extension'] = $extension;
-        $data['files'][$fileIndex]['size'] = $file['size'];
-        $data['files'][$fileIndex]['modified'] = true;
+        $db->updateFile($fileId, [
+            'name' => $originalName,
+            'extension' => $extension,
+            'size' => $file['size'],
+            'modified' => true
+        ]);
         
-        saveData($data);
+        $updatedFile = $db->getFileById($fileId);
         
         echo json_encode([
             'success' => true,
-            'file' => $data['files'][$fileIndex]
+            'file' => [
+                'id' => $updatedFile['id'],
+                'name' => $updatedFile['name'],
+                'originalName' => $updatedFile['original_name'],
+                'extension' => $updatedFile['extension'],
+                'size' => (int)$updatedFile['size'],
+                'uploadDate' => $updatedFile['upload_date'],
+                'modified' => (bool)$updatedFile['modified'],
+                'category' => $updatedFile['category']
+            ]
         ]);
         break;
     
@@ -232,23 +229,12 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        $fileIndex = -1;
-        
-        foreach ($data['files'] as $index => $f) {
-            if ($f['id'] === $input['id']) {
-                $fileIndex = $index;
-                break;
-            }
-        }
-        
-        if ($fileIndex === -1) {
+        if (!$db->fileExists($input['id'])) {
             echo json_encode(['success' => false, 'error' => 'File not found']);
             exit;
         }
         
-        $data['files'][$fileIndex]['name'] = $input['name'];
-        saveData($data);
+        $db->updateFile($input['id'], ['name' => $input['name']]);
         
         echo json_encode(['success' => true]);
         break;
@@ -259,30 +245,20 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        $fileIndex = -1;
+        $file = $db->getFileById($input['id']);
         
-        foreach ($data['files'] as $index => $f) {
-            if ($f['id'] === $input['id']) {
-                $fileIndex = $index;
-                break;
-            }
-        }
-        
-        if ($fileIndex === -1) {
+        if (!$file) {
             echo json_encode(['success' => false, 'error' => 'File not found']);
             exit;
         }
         
-        $file = $data['files'][$fileIndex];
         $filePath = UPLOAD_DIR . '/' . $file['id'] . '.' . $file['extension'];
         
         if (file_exists($filePath)) {
             unlink($filePath);
         }
         
-        array_splice($data['files'], $fileIndex, 1);
-        saveData($data);
+        $db->deleteFile($input['id']);
         
         echo json_encode(['success' => true]);
         break;
@@ -293,32 +269,21 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        $fileIndex = -1;
-        
-        foreach ($data['files'] as $index => $f) {
-            if ($f['id'] === $input['id']) {
-                $fileIndex = $index;
-                break;
-            }
-        }
-        
-        if ($fileIndex === -1) {
+        if (!$db->fileExists($input['id'])) {
             echo json_encode(['success' => false, 'error' => 'File not found']);
             exit;
         }
         
-        $data['files'][$fileIndex]['category'] = $input['category'];
-        saveData($data);
+        $db->updateFile($input['id'], ['category' => $input['category']]);
         
         echo json_encode(['success' => true]);
         break;
     
     case 'categories':
-        $data = loadData();
+        $categories = $db->getAllCategories();
         echo json_encode([
             'success' => true,
-            'categories' => $data['categories']
+            'categories' => $categories
         ]);
         break;
     
@@ -328,25 +293,21 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
         $name = trim($input['name']);
         
-        if (in_array($name, $data['categories'])) {
+        if ($db->categoryExists($name)) {
             echo json_encode(['success' => false, 'error' => 'Category already exists']);
             exit;
         }
         
-        $data['categories'][] = $name;
+        $db->insertCategory($name);
+        $db->resortCategories();
         
-        $allFiles = array_shift($data['categories']);
-        sort($data['categories'], SORT_NATURAL | SORT_FLAG_CASE);
-        array_unshift($data['categories'], $allFiles);
-        
-        saveData($data);
+        $categories = $db->getAllCategories();
         
         echo json_encode([
             'success' => true,
-            'categories' => $data['categories']
+            'categories' => $categories
         ]);
         break;
     
@@ -364,37 +325,40 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        
-        $categoryIndex = array_search($oldName, $data['categories']);
-        if ($categoryIndex === false) {
+        if (!$db->categoryExists($oldName)) {
             echo json_encode(['success' => false, 'error' => 'Category not found']);
             exit;
         }
         
-        if (in_array($newName, $data['categories'])) {
+        if ($db->categoryExists($newName)) {
             echo json_encode(['success' => false, 'error' => 'Category with this name already exists']);
             exit;
         }
         
-        $data['categories'][$categoryIndex] = $newName;
+        $db->renameCategory($oldName, $newName);
+        $db->resortCategories();
         
-        foreach ($data['files'] as $index => $file) {
-            if ($file['category'] === $oldName) {
-                $data['files'][$index]['category'] = $newName;
-            }
-        }
+        $categories = $db->getAllCategories();
+        $files = $db->getAllFiles();
         
-        $allFiles = array_shift($data['categories']);
-        sort($data['categories'], SORT_NATURAL | SORT_FLAG_CASE);
-        array_unshift($data['categories'], $allFiles);
-        
-        saveData($data);
+        // Convert database format to API format
+        $filesFormatted = array_map(function($file) {
+            return [
+                'id' => $file['id'],
+                'name' => $file['name'],
+                'originalName' => $file['original_name'],
+                'extension' => $file['extension'],
+                'size' => (int)$file['size'],
+                'uploadDate' => $file['upload_date'],
+                'modified' => (bool)$file['modified'],
+                'category' => $file['category']
+            ];
+        }, $files);
         
         echo json_encode([
             'success' => true,
-            'categories' => $data['categories'],
-            'files' => $data['files']
+            'categories' => $categories,
+            'files' => $filesFormatted
         ]);
         break;
     
@@ -411,28 +375,34 @@ switch ($action) {
             exit;
         }
         
-        $data = loadData();
-        
-        $categoryIndex = array_search($name, $data['categories']);
-        if ($categoryIndex === false) {
+        if (!$db->categoryExists($name)) {
             echo json_encode(['success' => false, 'error' => 'Category not found']);
             exit;
         }
         
-        array_splice($data['categories'], $categoryIndex, 1);
+        $db->deleteCategory($name);
         
-        foreach ($data['files'] as $index => $file) {
-            if ($file['category'] === $name) {
-                $data['files'][$index]['category'] = 'All Files';
-            }
-        }
+        $categories = $db->getAllCategories();
+        $files = $db->getAllFiles();
         
-        saveData($data);
+        // Convert database format to API format
+        $filesFormatted = array_map(function($file) {
+            return [
+                'id' => $file['id'],
+                'name' => $file['name'],
+                'originalName' => $file['original_name'],
+                'extension' => $file['extension'],
+                'size' => (int)$file['size'],
+                'uploadDate' => $file['upload_date'],
+                'modified' => (bool)$file['modified'],
+                'category' => $file['category']
+            ];
+        }, $files);
         
         echo json_encode([
             'success' => true,
-            'categories' => $data['categories'],
-            'files' => $data['files']
+            'categories' => $categories,
+            'files' => $filesFormatted
         ]);
         break;
     

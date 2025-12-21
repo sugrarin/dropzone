@@ -150,7 +150,7 @@ body {
 .category-btn-icon {
     border: none;
     cursor: pointer;
-    font-size: 14px
+    font-size: 14px;
     font-weight: 500;
     transition: all 0.15s;
     background: none;
@@ -403,6 +403,22 @@ body {
     color: var(--text-primary);
 }
 
+/* File menu button (three dots for mobile) */
+.file-menu-btn {
+    display: none;
+    padding: 6px 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text-secondary);
+    border-radius: 8px;
+}
+
+.file-menu-btn:hover {
+    background: var(--bg-secondary);
+}
+
 /* Category selector */
 .category-select {
     appearance: none;
@@ -466,7 +482,7 @@ body {
 }
 
 .modal-header {
-    padding: 20px 24px; 
+    padding: 20px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -588,6 +604,7 @@ body {
         transform: translateX(400px);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -631,22 +648,41 @@ body {
     body {
         flex-direction: column;
     }
-    
+
     .sidebar {
         width: 100%;
         max-height: 200px;
     }
-    
+
     .drop-zone {
         margin: 16px 16px 0;
         padding: 32px 16px;
     }
-    
+
     .controls {
         padding: 16px;
     }
-    
+
     .files-container {
         padding: 0 16px;
+    }
+
+    /* Hide individual action buttons and category select on mobile */
+    .action-btn {
+        display: none !important;
+    }
+
+    .category-select {
+        display: none !important;
+    }
+
+    /* Show three-dot menu button on mobile */
+    .file-menu-btn {
+        display: block;
+    }
+
+    /* Make file actions visible on mobile */
+    .file-actions {
+        opacity: 1;
     }
 }
