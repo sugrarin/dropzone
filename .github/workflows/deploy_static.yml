@@ -1,0 +1,38 @@
+name: Deploy Static Page
+
+on:
+  push:
+    branches:
+      - main  # Измени на ветку, которую ты используешь для деплоя
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      # Шаг 1: Скачиваем файлы из репозитория
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true # Если используешь большие файлы
+
+      # Шаг 2: Настраиваем окружение Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # Шаг 3: Загружаем артефакт (твои статические файлы)
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          # ВНИМАНИЕ: Здесь указывается каталог, который нужно опубликовать
+          path: './demo'  # <-- Здесь измени на '/demo' или '/docs'
+
+      # Шаг 4: Развертываем сайт
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
